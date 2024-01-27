@@ -7,25 +7,15 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class SimpleJDBCRepository {
-
-    private Connection connection = null;
+    private final Connection connection;
 
     private static final String createUserSQL = "insert into myusers(firstname, lastname, age) values(?, ?, ?)";
-
-    private static final String updateUserSQL =
-            "update myusers " +
-                    "set " +
-                    "firstname = ?, " +
-                    "lastname = ?, " +
-                    "age = ? " +
-                    "where id = ?";
-
+    private static final String updateUserSQL = "update myusers set firstname = ?, lastname = ?, age = ? where id = ?";
     private static final String deleteUserSQL = "delete from myusers where id = ?";
     private static final String findUserByIdSQL = "select id, lastname, firstname, age from myusers where id = ?";
-    private static final String findUserByNameSQL = "select id, lastname, firstname, age from myusers where lastname = ?";
+    private static final String findUserByNameSQL = "select id, lastname, firstname, age from myusers where firstname = ?";
     private static final String findAllUserSQL = "select id, lastname, firstname, age from myusers";
 
     private PreparedStatement createUserStatement = null;
@@ -61,7 +51,7 @@ public class SimpleJDBCRepository {
             this.createUserStatement.setString(1, user.getFirstName());
             this.createUserStatement.setString(2, user.getLastName());
             this.createUserStatement.setInt(3, user.getAge());
-            this.connection.setAutoCommit(false);
+
             try {
                 this.createUserStatement.executeUpdate();
                 this.connection.commit();
