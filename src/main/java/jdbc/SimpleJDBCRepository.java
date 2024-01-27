@@ -14,9 +14,7 @@ public class SimpleJDBCRepository {
     private Connection connection = null;
 
     private static final String createUserSQL =
-            "insert into myusers(firstname, lastname, age) " +
-                    "values(?, ?, ?) " +
-                    "returning id";
+            "insert into myusers(firstname, lastname, age) values(?, ?, ?)";
 
     private static final String updateUserSQL =
             "update myusers " +
@@ -52,13 +50,14 @@ public class SimpleJDBCRepository {
         try {
             this.connection = connection;
             this.connection.setAutoCommit(false);
+            prepareStatements();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     private void prepareStatements() throws SQLException {
-        this.createUserStatement = this.connection.prepareStatement(createUserSQL);
+        this.createUserStatement = this.connection.prepareStatement(createUserSQL, PreparedStatement.RETURN_GENERATED_KEYS);
         this.updateUserStatement = this.connection.prepareStatement(updateUserSQL);
         this.deleteUserStatement = this.connection.prepareStatement(deleteUserSQL);
         this.findUserByIdStatement = this.connection.prepareStatement(findUserByIdSQL);
@@ -73,19 +72,15 @@ public class SimpleJDBCRepository {
             this.createUserStatement.setInt(3, user.getAge());
             this.connection.setAutoCommit(false);
             try {
-                Long id = execStatement(this.createUserStatement, (ResultSet rs) -> {
-                    try {
-                        if (rs.next()) {
-                            return rs.getLong(1);
-                        } else {
-                            return 0L;
-                        }
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+                this.createUserStatement.executeUpdate();
                 this.connection.commit();
-                return id;
+
+                ResultSet generatedKeys = this.createUserStatement.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    return generatedKeys.getLong(1);
+                } else {
+                    return 0L;
+                }
             } catch (Exception e) {
                 this.connection.rollback();
                 throw e;
@@ -124,7 +119,7 @@ public class SimpleJDBCRepository {
             this.updateUserStatement.setInt(3, user.getAge());
             this.updateUserStatement.setLong(4, user.getId());
             try {
-                execStatement(this.updateUserStatement, () -> user);
+                this.updateUserStatement.execute();
                 this.connection.commit();
                 return user;
             } catch (Exception e) {
@@ -140,7 +135,7 @@ public class SimpleJDBCRepository {
         try {
             try {
                 this.deleteUserStatement.setLong(1, userId);
-                execStatement(this.deleteUserStatement, () -> null);
+                this.deleteUserStatement.execute();
                 this.connection.commit();
             } catch (Exception e) {
                 this.connection.rollback();
@@ -156,15 +151,6 @@ public class SimpleJDBCRepository {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private <R> R execStatement(PreparedStatement st, Supplier<R> func) {
-        try {
-            st.execute();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        return func.get();
     }
 
     private User userMapper(ResultSet rs) {
