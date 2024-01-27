@@ -11,7 +11,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 @Getter
@@ -49,17 +48,13 @@ public class CustomDataSource implements DataSource {
             String name = properties.getProperty("postgres.name");
             String password = properties.getProperty("postgres.password");
 
-            synchronized(CustomDataSource.class) {
-                if (instance == null) {
-                    try {
-                        Class.forName(driver);
-                    } catch (ClassNotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
-
-                    instance = new CustomDataSource(driver, url, password, name);
-                }
+            try {
+                Class.forName(driver);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
             }
+
+            instance = new CustomDataSource(driver, url, password, name);
         }
         return instance;
     }
