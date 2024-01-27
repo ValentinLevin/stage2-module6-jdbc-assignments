@@ -6,13 +6,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class SimpleJDBCRepository {
 
-    private final Connection connection;
+    private Connection connection = null;
 
     private static final String createUserSQL =
             "insert into myusers(firstname, lastname, age) " +
@@ -38,6 +37,10 @@ public class SimpleJDBCRepository {
     private PreparedStatement findUserByIdStatement;
     private PreparedStatement findUserByNameStatement;
     private PreparedStatement findAllUserStatement;
+
+    public SimpleJDBCRepository() throws SQLException {
+        this(CustomDataSource.getInstance().getConnection());
+    }
 
     public SimpleJDBCRepository(Connection connection) throws SQLException {
         this.connection = connection;
