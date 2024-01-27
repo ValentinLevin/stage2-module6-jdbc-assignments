@@ -38,14 +38,26 @@ public class SimpleJDBCRepository {
     private PreparedStatement findUserByNameStatement;
     private PreparedStatement findAllUserStatement;
 
-    public SimpleJDBCRepository() throws SQLException {
-        this(CustomDataSource.getInstance().getConnection());
+    public SimpleJDBCRepository() {
+        try {
+            this.connection = CustomDataSource.getInstance().getConnection();
+            this.connection.setAutoCommit(false);
+            prepareStatements();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public SimpleJDBCRepository(Connection connection) throws SQLException {
-        this.connection = connection;
-        this.connection.setAutoCommit(false);
+    public SimpleJDBCRepository(Connection connection) {
+        try {
+            this.connection = connection;
+            this.connection.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
+    private void prepareStatements() throws SQLException {
         this.createUserStatement = this.connection.prepareStatement(createUserSQL);
         this.updateUserStatement = this.connection.prepareStatement(updateUserSQL);
         this.deleteUserStatement = this.connection.prepareStatement(deleteUserSQL);
@@ -54,79 +66,104 @@ public class SimpleJDBCRepository {
         this.findAllUserStatement = this.connection.prepareStatement(findAllUserSQL);
     }
 
-
-    public Long createUser(User user) throws SQLException {
-        this.createUserStatement.setString(1, user.getFirstName());
-        this.createUserStatement.setString(2, user.getLastName());
-        this.createUserStatement.setInt(3, user.getAge());
-        this.connection.setAutoCommit(false);
+    public Long createUser(User user) {
         try {
-            Long id = execStatement(this.createUserStatement, (ResultSet rs) -> {
-                try {
-                    if (rs.next()) {
-                        return rs.getLong(1);
-                    } else {
-                        return 0L;
+            this.createUserStatement.setString(1, user.getFirstName());
+            this.createUserStatement.setString(2, user.getLastName());
+            this.createUserStatement.setInt(3, user.getAge());
+            this.connection.setAutoCommit(false);
+            try {
+                Long id = execStatement(this.createUserStatement, (ResultSet rs) -> {
+                    try {
+                        if (rs.next()) {
+                            return rs.getLong(1);
+                        } else {
+                            return 0L;
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
                     }
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            this.connection.commit();
-            return id;
-        } catch (Exception e) {
-            this.connection.rollback();
-            throw e;
+                });
+                this.connection.commit();
+                return id;
+            } catch (Exception e) {
+                this.connection.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public User findUserById(Long userId) throws SQLException {
-        this.findUserByIdStatement.setLong(1, userId);
-        return execStatement(this.findUserByIdStatement, this::userMapper);
+    public User findUserById(Long userId) {
+        try {
+            this.findUserByIdStatement.setLong(1, userId);
+            return execStatement(this.findUserByIdStatement, this::userMapper);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public User findUserByName(String userName) throws SQLException {
-        this.findUserByNameStatement.setString(1, userName);
-        return execStatement(this.findUserByNameStatement, this::userMapper);
+    public User findUserByName(String userName) {
+        try {
+            this.findUserByNameStatement.setString(1, userName);
+            return execStatement(this.findUserByNameStatement, this::userMapper);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public List<User> findAllUser() throws SQLException {
+    public List<User> findAllUser() {
         return execStatement(this.findAllUserStatement, this::userListMapper);
     }
 
-    public User updateUser(User user) throws SQLException {
-        this.updateUserStatement.setString(1, user.getFirstName());
-        this.updateUserStatement.setString(2, user.getLastName());
-        this.updateUserStatement.setInt(3, user.getAge());
-        this.updateUserStatement.setLong(4, user.getId());
+    public User updateUser(User user) {
         try {
-            execStatement(this.updateUserStatement, () -> user);
-            this.connection.commit();
-            return user;
-        } catch (Exception e) {
-            this.connection.rollback();
-            throw e;
+            this.updateUserStatement.setString(1, user.getFirstName());
+            this.updateUserStatement.setString(2, user.getLastName());
+            this.updateUserStatement.setInt(3, user.getAge());
+            this.updateUserStatement.setLong(4, user.getId());
+            try {
+                execStatement(this.updateUserStatement, () -> user);
+                this.connection.commit();
+                return user;
+            } catch (Exception e) {
+                this.connection.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public void deleteUser(Long userId) throws SQLException {
+    public void deleteUser(Long userId) {
         try {
-            this.deleteUserStatement.setLong(1, userId);
-            execStatement(this.deleteUserStatement, () -> null);
-            this.connection.commit();
-        } catch (Exception e) {
-            this.connection.rollback();
+            try {
+                this.deleteUserStatement.setLong(1, userId);
+                execStatement(this.deleteUserStatement, () -> null);
+                this.connection.commit();
+            } catch (Exception e) {
+                this.connection.rollback();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private <R> R execStatement(PreparedStatement st, Function<ResultSet, R> func) throws SQLException {
+    private <R> R execStatement(PreparedStatement st, Function<ResultSet, R> func) {
         try (ResultSet rs = st.executeQuery()) {
             return func.apply(rs);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private <R> R execStatement(PreparedStatement st, Supplier<R> func) throws SQLException {
-        st.execute();
+    private <R> R execStatement(PreparedStatement st, Supplier<R> func) {
+        try {
+            st.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         return func.get();
     }
 
