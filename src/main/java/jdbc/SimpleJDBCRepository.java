@@ -13,8 +13,7 @@ public class SimpleJDBCRepository {
 
     private Connection connection = null;
 
-    private static final String createUserSQL =
-            "insert into myusers(firstname, lastname, age) values(?, ?, ?)";
+    private static final String createUserSQL = "insert into myusers(firstname, lastname, age) values(?, ?, ?)";
 
     private static final String updateUserSQL =
             "update myusers " +
@@ -29,18 +28,17 @@ public class SimpleJDBCRepository {
     private static final String findUserByNameSQL = "select id, lastname, firstname, age from myusers where lastname = ?";
     private static final String findAllUserSQL = "select id, lastname, firstname, age from myusers";
 
-    private PreparedStatement createUserStatement;
-    private PreparedStatement updateUserStatement;
-    private PreparedStatement deleteUserStatement;
-    private PreparedStatement findUserByIdStatement;
-    private PreparedStatement findUserByNameStatement;
-    private PreparedStatement findAllUserStatement;
+    private PreparedStatement createUserStatement = null;
+    private PreparedStatement updateUserStatement = null;
+    private PreparedStatement deleteUserStatement = null;
+    private PreparedStatement findUserByIdStatement = null;
+    private PreparedStatement findUserByNameStatement = null;
+    private PreparedStatement findAllUserStatement = null;
 
     public SimpleJDBCRepository() {
         try {
             this.connection = CustomDataSource.getInstance().getConnection();
             this.connection.setAutoCommit(false);
-            prepareStatements();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -50,23 +48,16 @@ public class SimpleJDBCRepository {
         try {
             this.connection = connection;
             this.connection.setAutoCommit(false);
-            prepareStatements();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void prepareStatements() throws SQLException {
-        this.createUserStatement = this.connection.prepareStatement(createUserSQL, PreparedStatement.RETURN_GENERATED_KEYS);
-        this.updateUserStatement = this.connection.prepareStatement(updateUserSQL);
-        this.deleteUserStatement = this.connection.prepareStatement(deleteUserSQL);
-        this.findUserByIdStatement = this.connection.prepareStatement(findUserByIdSQL);
-        this.findUserByNameStatement = this.connection.prepareStatement(findUserByNameSQL);
-        this.findAllUserStatement = this.connection.prepareStatement(findAllUserSQL);
-    }
-
     public Long createUser(User user) {
         try {
+            if (this.createUserStatement == null) {
+                this.createUserStatement = this.connection.prepareStatement(createUserSQL, PreparedStatement.RETURN_GENERATED_KEYS);
+            }
             this.createUserStatement.setString(1, user.getFirstName());
             this.createUserStatement.setString(2, user.getLastName());
             this.createUserStatement.setInt(3, user.getAge());
@@ -92,6 +83,9 @@ public class SimpleJDBCRepository {
 
     public User findUserById(Long userId) {
         try {
+            if (this.findUserByIdStatement == null) {
+                this.findUserByIdStatement = this.connection.prepareStatement(findUserByIdSQL);
+            }
             this.findUserByIdStatement.setLong(1, userId);
             return execStatement(this.findUserByIdStatement, this::userMapper);
         } catch (SQLException e) {
@@ -101,6 +95,9 @@ public class SimpleJDBCRepository {
 
     public User findUserByName(String userName) {
         try {
+            if (this.findUserByNameStatement == null) {
+                this.findUserByNameStatement = this.connection.prepareStatement(findUserByNameSQL);
+            }
             this.findUserByNameStatement.setString(1, userName);
             return execStatement(this.findUserByNameStatement, this::userMapper);
         } catch (SQLException e) {
@@ -109,11 +106,21 @@ public class SimpleJDBCRepository {
     }
 
     public List<User> findAllUser() {
-        return execStatement(this.findAllUserStatement, this::userListMapper);
+        try {
+            if (this.findAllUserStatement == null) {
+                this.findAllUserStatement = this.connection.prepareStatement(findAllUserSQL);
+            }
+            return execStatement(this.findAllUserStatement, this::userListMapper);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public User updateUser(User user) {
         try {
+            if (this.updateUserStatement == null) {
+                this.updateUserStatement = this.connection.prepareStatement(updateUserSQL);
+            }
             this.updateUserStatement.setString(1, user.getFirstName());
             this.updateUserStatement.setString(2, user.getLastName());
             this.updateUserStatement.setInt(3, user.getAge());
@@ -133,6 +140,10 @@ public class SimpleJDBCRepository {
 
     public void deleteUser(Long userId) {
         try {
+            if (this.deleteUserStatement == null) {
+                this.deleteUserStatement = this.connection.prepareStatement(deleteUserSQL);
+            }
+
             try {
                 this.deleteUserStatement.setLong(1, userId);
                 this.deleteUserStatement.execute();
